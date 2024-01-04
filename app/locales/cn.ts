@@ -359,7 +359,7 @@ const cn = {
   },
   Store: {
     DefaultTopic: "新的聊天",
-    BotHello: "有什么可以帮你的吗？\n若未反应，尝试切换模型为google-gemini-pro",
+    BotHello: "有什么可以帮你的吗？\n推荐日常使用：google-gemini-pro>gpt-3.5-turbo-1106>gpt-4-1106-preview",
     Error: "出错了，稍后重试吧",
     Prompt: {
       History: (content: string) => "这是历史聊天总结作为前情提要：" + content,
