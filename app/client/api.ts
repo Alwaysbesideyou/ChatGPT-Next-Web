@@ -8,6 +8,7 @@ import {
 import { ChatMessage, ModelType, useAccessStore, useChatStore } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
 import { GeminiProApi } from "./platforms/google";
+import { ClaudeApi } from "./platforms/anthropic";
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
 
@@ -94,11 +95,16 @@ export class ClientApi {
   public llm: LLMApi;
 
   constructor(provider: ModelProvider = ModelProvider.GPT) {
-    if (provider === ModelProvider.GeminiPro) {
-      this.llm = new GeminiProApi();
-      return;
+    switch (provider) {
+      case ModelProvider.GeminiPro:
+        this.llm = new GeminiProApi();
+        break;
+      case ModelProvider.Claude:
+        this.llm = new ClaudeApi();
+        break;
+      default:
+        this.llm = new ChatGPTApi();
     }
-    this.llm = new ChatGPTApi();
   }
 
   config() {}
@@ -156,14 +162,17 @@ export function getHeaders() {
   const modelConfig = useChatStore.getState().currentSession().mask.modelConfig;
   const isGoogle = modelConfig.model.startsWith("gemini");
   const isAzure = accessStore.provider === ServiceProvider.Azure;
-  const authHeader = isAzure ? "api-key" : "Authorization";
+  const isAnthropic = accessStore.provider === ServiceProvider.Anthropic;
+  const authHeader = isAzure ? "api-key" : isAnthropic ? 'x-api-key' : "Authorization";
   const apiKey = isGoogle
     ? accessStore.googleApiKey
     : isAzure
     ? accessStore.azureApiKey
+    : isAnthropic
+    ? accessStore.anthropicApiKey
     : accessStore.openaiApiKey;
   const clientConfig = getClientConfig();
-  const makeBearer = (s: string) => `${isAzure ? "" : "Bearer "}${s.trim()}`;
+  const makeBearer = (s: string) => `${isAzure || isAnthropic ? "" : "Bearer "}${s.trim()}`;
   const validString = (x: string) => x && x.length > 0;
 
   // when using google api in app, not set auth header
@@ -175,7 +184,8 @@ export function getHeaders() {
       accessStore.enabledAccessControl() &&
       validString(accessStore.accessCode)
     ) {
-      headers[authHeader] = makeBearer(
+      // access_code must send with header named `Authorization`, will using in auth middleware.
+      headers['Authorization'] = makeBearer(
         ACCESS_CODE_PREFIX + accessStore.accessCode,
       );
     }
